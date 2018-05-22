@@ -26,9 +26,7 @@
 	   (transform-tailcall-register-guard
 	    (transform-funcall-to-tailcall
 	     (transform-annotate-lambda x)))))))
-    (if (labels-p transformed-program)
-	(emit-labels transformed-program si)
-	(emit-expr transformed-program si nil))
+    (emit-labels transformed-program si)
     (restore-registers)
     (emit "ret")))
 
