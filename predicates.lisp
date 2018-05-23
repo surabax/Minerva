@@ -44,3 +44,6 @@
 
 (defun primcallp (x)
   (and (listp x) (not (null x))))
+
+(defun set!-p (x)
+  (and (listp x) (eql (car x) 'set!)))

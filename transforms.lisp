@@ -126,3 +126,44 @@
 ;; maybe funcall should be replaced here with a special form ("top-level" or "tailcall-register-guard") that works like funcall
 (defun transform-tailcall-register-guard (x)
   `(funcall (lambda () () ,x)))
+
+;; TODO add handling of cases like (let ((lambda (lambda (x) (* x x)))) (lambda 3))
+(defun transform-alpha-conversion (x)
+  (labels
+      ((transform (x env)
+	 (cond
+	   ((variablep x)
+	    (let ((alias (cdr (assoc x env))))
+	      (or alias (error "Unbound variable: ~a" x))))
+	   ((quotep x)
+	    x)
+	   ((lambdap x)
+	    `(lambda
+	       ,(loop for v in (lambda-formalvars x)
+		      do (setf env (acons v (gensym) env))
+		      collect (cdr (assoc v env)))
+	       ,@(loop for e in (lambda-body x)
+		       collect (transform e env))))
+	   ((letp x)
+	    `(let
+		 ,(loop for (v b) in (let-bindings x)
+			do (setf env (acons v (gensym) env))
+			collect (list (cdr (assoc v env)) (transform b env)))
+	       ,@(loop for e in (let-body x)
+		       collect (transform e env))))
+	   ((and (listp x) (not (null x)))
+	    `(,(car x)
+	      ,@(loop for e in (cdr x)
+		      collect (transform e env))))
+	   (t
+	    x))))
+    (transform x nil)))
+
+(defun flatten (ls)
+  (labels ((mklist (x) (if (listp x) x (list x))))
+    (mapcan #'(lambda (x) (if (atom x) (mklist x) (temp-flatten x))) ls)))
+
+;; TODO find-set -> replace-set-get -> reconstruct-form
+;; TODO find-set: flatten the input, then check every occurence of set! for formal variables
+(defun transform-assignment (x)
+  x)
