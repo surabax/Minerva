@@ -1,7 +1,6 @@
 (in-package :minerva)
 
 ;; Change this to your project directory before running tests:
-;;(defparameter *minerva-pathname* "c:/Dev/Projects/Minerva/")
 (defparameter *minerva-pathname* "C:/Users/yaros/.quicklisp/local-projects/Minerva/")
 
 (defparameter *test-output* *standard-output*)
@@ -110,4 +109,7 @@
    (test-section "Complex Constants:")
    (test-case '(quote (1 . 2)) "(1 . 2)")
    (test-case '(car (quote (1 . 2))) "1")
-   (test-case '(let ((f (lambda () (quote (1 . "H"))))) (eq? (funcall f) (funcall f))) "#t")))
+   (test-case '(let ((f (lambda () (quote (1 . "H"))))) (eq? (funcall f) (funcall f))) "#t")
+   (test-section "Assignment:")
+   (test-case '(let ((a 1333)) (set! a (+ a 2)) (funcall (lambda (a b) (set! a (+ a 1)) (+ a b)) 1 a)) "1337")
+   (test-case '(let ((z 1)) (let ((z (let ((z z)) (set! z (+ z 1)) z))) (+ z 1))) "3")))

@@ -26,7 +26,8 @@
 	   (transform-tailcall-register-guard
 	    (transform-funcall-to-tailcall
 	     (transform-annotate-lambda
-	      (transform-alpha-conversion x))))))))
+	      (transform-assignment
+	       (transform-alpha-conversion x)))))))))
     (emit-labels transformed-program si)
     (restore-registers)
     (emit "ret")))

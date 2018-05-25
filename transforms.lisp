@@ -1,11 +1,13 @@
 (in-package :minerva)
 
 ;; Current order of transforms:
-;; 1. transform-annotate-lambda
-;; 2. transform-funcall-to-tailcall
-;; 3. transform-tailcall-register-guard
-;; 4. transform-lambda-to-closure
-;; 5. transform-quote-to-constant
+;; 1. transform-alpha-conversion
+;; 2. transform-assignment
+;; 3. transform-annotate-lambda
+;; 4. transform-funcall-to-tailcall
+;; 5. transform-tailcall-register-guard
+;; 6. transform-lambda-to-closure
+;; 7. transform-quote-to-constant
 ;; N.B. Transforms will break if called in wrong order.
 
 (defun transform-annotate-lambda (x)
@@ -19,38 +21,39 @@
 		   ((lambdap x)
 		    (let ((new-body nil) (body-freevars nil))
 		      (loop for e in (lambda-body x) do
-			   (multiple-value-bind (new-e e-freevars)
-			       (transform-annotate-lambda-1 e (lambda-formalvars x))
-			     (push new-e new-body)
-			     (setf body-freevars (union body-freevars e-freevars))))
+			(multiple-value-bind (new-e e-freevars)
+			    (transform-annotate-lambda-1 e (lambda-formalvars x))
+			  (push new-e new-body)
+			  (setf body-freevars (union body-freevars e-freevars))))
 		      (let ((lambda-freevars (remove-if (lambda (v) (member v (lambda-formalvars x))) body-freevars)))
 			(values `(lambda ,(lambda-formalvars x) ,lambda-freevars ,@(reverse new-body)) body-freevars))))
-		    ((letp x)
-		    (let ((freevars nil))
+		   ((letp x)
+		    (let ((freevars nil) (formals formals))
 		      (values
 		       `(let
 			    ,(loop for (v expr) in (let-bindings x) collect
-				  (multiple-value-bind (te fv)
-				      (transform-annotate-lambda-1 expr formals)
-				    (setf freevars (append freevars fv))
-				    (list v te)))
+								    (multiple-value-bind (te fv)
+									(transform-annotate-lambda-1 expr formals)
+								      (setf freevars (append freevars fv))
+								      (setf formals (cons v formals))
+								      (list v te)))
 			  ,@(loop for e in (let-body x) collect
-				 (multiple-value-bind (te fv)
-				     (transform-annotate-lambda-1 e formals)
-				   (setf freevars (union freevars fv))
-				   te)))
+							(multiple-value-bind (te fv)
+							    (transform-annotate-lambda-1 e formals)
+							  (setf freevars (union freevars fv))
+							  te)))
 		       freevars)))
 		   ((listp x)
 		    (let ((freevars nil))
 		      (values
 		       `(,(first x) ,@(loop for e in (rest x) collect
-					   (multiple-value-bind (element fv)
-					       (transform-annotate-lambda-1 e formals)
-					     (setf freevars (append freevars fv))
-					     element)))
-		       freevars))))))
+							      (multiple-value-bind (element fv)
+								  (transform-annotate-lambda-1 e formals)
+								(setf freevars (append freevars fv))
+								element)))
+			freevars))))))
     (transform-annotate-lambda-1 x nil)))
-	   
+
 (defun transform-lambda-to-closure (x)
   (let ((lexprs nil))
     (labels
@@ -145,25 +148,87 @@
 	       ,@(loop for e in (lambda-body x)
 		       collect (transform e env))))
 	   ((letp x)
+	    (let ((old-env env))
 	    `(let
 		 ,(loop for (v b) in (let-bindings x)
 			do (setf env (acons v (gensym) env))
-			collect (list (cdr (assoc v env)) (transform b env)))
+			collect (list (cdr (assoc v env)) (transform b old-env)))
 	       ,@(loop for e in (let-body x)
-		       collect (transform e env))))
-	   ((and (listp x) (not (null x)))
-	    `(,(car x)
+		       collect (transform e env)))))
+	   ((and (listp x) (not (null x))) ; TODO redo this after adding macro-expander transforms:
+	    `(,(car x) ; TODO first element should be processed like every other one
 	      ,@(loop for e in (cdr x)
 		      collect (transform e env))))
 	   (t
-	    x))))
+x	    x))))
     (transform x nil)))
 
-(defun flatten (ls)
-  (labels ((mklist (x) (if (listp x) x (list x))))
-    (mapcan #'(lambda (x) (if (atom x) (mklist x) (temp-flatten x))) ls)))
+(defun mklist (x)
+  (if (listp x) x (list x)))
 
-;; TODO find-set -> replace-set-get -> reconstruct-form
-;; TODO find-set: flatten the input, then check every occurence of set! for formal variables
+(defun flatten (ls)
+    (mapcan #'(lambda (x) (if (atom x) (mklist x) (flatten x))) ls))
+
 (defun transform-assignment (x)
-  x)
+  (labels
+      ((find-set! (x var)
+	 (let ((fx (flatten x)))
+	   (loop for i from 0 to (1- (length fx))
+		 for e in fx do
+		   (when (and
+			  (eql e 'set!)
+			  (eql (nth (1+ i) fx) var))
+		     (return t)))))
+       (replace-set-get (x vars)
+	 (cond
+	   ((and (variablep x) (member x vars))
+	    `(vector-ref ,x 0))
+	   ((set!-p x)
+	    (if (member (second x) vars)
+		`(vector-set! ,(second x) 0 ,(replace-set-get (third x) vars))
+		x))
+	   ((quotep x)
+	    x)
+	   ((not (atom x))
+	    (mapcar #'(lambda (y) (replace-set-get y vars)) x))
+	   (t
+	    x)))
+       (wrap-in-let (x aliases)
+	 (if aliases
+	     (list (wrap-in-let `(let ((,(car (car aliases)) (vector ,(cdr (car aliases))))) ,@x) (cdr aliases)))
+	     x)))
+    (cond
+      ((lambdap x)
+       (let* ((assignables (remove-if-not #'(lambda (v) (find-set! (lambda-body x) v)) (lambda-formalvars x)))
+	      (new-body (replace-set-get (lambda-body x) assignables))
+	      (aliases (mapcar #'(lambda (x) (cons x (gensym))) assignables)))
+	 `(lambda
+	    ,(mapcar
+	      #'(lambda (v)
+		  (let ((a (assoc v aliases)))
+		    (if a (cdr a) v)))
+	      (lambda-formalvars x))
+	    ,@(wrap-in-let (transform-assignment new-body) aliases))))
+      ((letp x)
+       (let*
+	   ((bound-vars (mapcar #'car (let-bindings x)))
+	    (new-bindings (mapcar #'transform-assignment (mapcar #'cadr (let-bindings x))))
+	    (assignables (remove-if-not #'(lambda (v) (find-set! (let-body x) v)) bound-vars))
+	    (new-body (replace-set-get (let-body x) assignables))
+	    (aliases (mapcar #'(lambda (x) (cons x (gensym))) assignables)))
+	 `(let
+	      ,(loop for v in bound-vars
+		     for b in new-bindings
+		     collect (list
+			      (let ((a (assoc v aliases)))
+				(if a (cdr a) v))
+			      b))
+	    ,@(wrap-in-let (transform-assignment new-body) aliases))))
+      ((quotep x)
+       x)
+      ((listp x)
+       (mapcar #'transform-assignment x))
+      (t
+       x))))
+	 
+	 

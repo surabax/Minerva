@@ -54,6 +54,8 @@
      (emit-vector-ref x si env))
     (vector-set!
      (emit-vector-set! x si env))
+    (vector
+     (emit-vector x si env))
     (make-string
      (emit-make-string x si env))
     (string-ref
@@ -258,6 +260,13 @@
   (emit "sarl $~a, %edx" +shift-integer+)
   (emit "addl $1, %edx")
   (emit "movl %ebx, (%eax,%edx,~a)" +word-size+))
+
+(defun emit-vector (x si env) ; TODO incomplete
+  (emit-expr
+   (let ((new-vector (gensym)))
+     `(let ((,new-vector (make-vector 1))) (vector-set! ,new-vector 0 ,(primcall-operand1 x)) ,new-vector))
+   si
+   env))
 
 (defun emit-make-string (x si env)
   (emit-expr (primcall-operand1 x) si env)
