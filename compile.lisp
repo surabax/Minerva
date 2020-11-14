@@ -40,9 +40,14 @@
 (defun write-preamble ()
   (emit ".text")
   (emit ".p2align 2,,3")
+  #+win32
   (emit ".globl	_scheme_entry")
-  (emit ".def	_scheme_entry;	.scl	2;	.type	32;	.endef")
+  #+linux
+  (emit ".globl scheme_entry")
+  #+win32
   (emit "_scheme_entry:")
+  #+linux
+  (emit "scheme_entry:")
   (save-registers)
   (emit "movl 4(%esp), %eax")
   (emit "movl 0(%eax), %esi")

@@ -18,7 +18,10 @@
   (uiop:run-program (list "gcc" "test.s" "runtime.c" "-m32" "-o" "main") :directory *intermediates-pathname*))
 
 (defun run-c ()
-  (uiop:run-program (list (make-pathname :name "main" :type "exe" :defaults *intermediates-pathname*)) :output *test-output*))
+  #+win32
+  (uiop:run-program (list (make-pathname :name "main" :type "exe" :defaults *intermediates-pathname*)) :output *test-output*)
+  #+linux
+  (uiop:run-program (list (make-pathname :name "main" :defaults *intermediates-pathname*)) :output *test-output*))
 
 (defun test-case (input expected-output)
       (let* ((raw-output
