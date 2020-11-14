@@ -31,7 +31,10 @@
 		  (compile-scheme input)
 		  (compile-c)
 		  (run-c))))
+	     #+win32
 	     (output (subseq raw-output 0 (- (length raw-output) 2)))
+	     #+linux
+	     (output (subseq raw-output 0 (- (length raw-output) 1)))
 	     (result (string= expected-output output)))
 	(format t "~:[FAILED~;passed~] case: ~s | expected output: ~a ~:[| actual output: ~a~;~]~%" result input expected-output result output)
 	result))
