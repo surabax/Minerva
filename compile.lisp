@@ -1,7 +1,7 @@
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Minerva Scheme Compiler   ;;;
-;;; 2018 (c) Yaroslav Khnygin ;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Minerva Scheme                 ;;;
+;;; 2018-2020 (c) Yaroslav Khnygin ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (in-package :minerva)
 
@@ -36,6 +36,16 @@
   `(with-open-file (*compile-output* ,file :direction :output)
      (write-preamble)
      ,@body))
+
+(defun compile-payload (input output)
+  (with-output-to-file (make-pathname :type "s" :defaults output) (compile-program input)))
+
+(defun compile-executable (output)
+  (uiop:run-program (list "gcc" (file-namestring (make-pathname :type "s" :defaults output)) "runtime.c" "-m32" "-o" (pathname-name output)) :directory (make-pathname :name nil :type nil :defaults output)))
+
+(defun compile-scheme-string (input output)
+  (compile-payload input output)
+  (compile-executable output))
 
 (defun write-preamble ()
   (emit ".text")

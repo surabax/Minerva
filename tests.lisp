@@ -5,39 +5,33 @@
 
 (defparameter *test-output* *standard-output*)
 
-(defun compile-scheme (input)
-  (with-output-to-file (make-pathname :name "test" :type "s" :defaults *intermediates-pathname*) (compile-program input)))
-
 (defun clean-test ()
   (let ((test-s-pathname (make-pathname :name "test" :type "s" :defaults *intermediates-pathname*)))
     (when (probe-file test-s-pathname) (delete-file test-s-pathname)))
   (let ((main-exe-pathname (make-pathname :name "main" :type "exe" :defaults *intermediates-pathname*)))
     (when (probe-file main-exe-pathname) (delete-file main-exe-pathname))))
 
-(defun compile-c ()
-  (uiop:run-program (list "gcc" "test.s" "runtime.c" "-m32" "-o" "main") :directory *intermediates-pathname*))
-
-(defun run-c ()
+(defun run-executable (test-pathname)
   #+win32
-  (uiop:run-program (list (make-pathname :name "main" :type "exe" :defaults *intermediates-pathname*)) :output *test-output*)
+  (uiop:run-program (list (make-pathname :type "exe" :defaults test-pathname)) :output *test-output*)
   #+linux
-  (uiop:run-program (list (make-pathname :name "main" :defaults *intermediates-pathname*)) :output *test-output*))
+  (uiop:run-program (list test-pathname) :output *test-output*))
 
 (defun test-case (input expected-output)
-      (let* ((raw-output
-	      (with-output-to-string (*test-output*)
-		(progn
-		  (clean-test)
-		  (compile-scheme input)
-		  (compile-c)
-		  (run-c))))
-	     #+win32
-	     (output (subseq raw-output 0 (- (length raw-output) 2)))
-	     #+linux
-	     (output (subseq raw-output 0 (- (length raw-output) 1)))
-	     (result (string= expected-output output)))
-	(format t "~:[FAILED~;passed~] case: ~s | expected output: ~a ~:[| actual output: ~a~;~]~%" result input expected-output result output)
-	result))
+  (let* ((test-pathname (make-pathname :name "test" :defaults *intermediates-pathname*))
+	 (raw-output
+	   (with-output-to-string (*test-output*)
+	     (progn
+	       (clean-test)
+	       (compile-scheme-string input test-pathname)
+	       (run-executable test-pathname))))
+	 #+win32
+	 (output (subseq raw-output 0 (- (length raw-output) 2)))
+	 #+linux
+	 (output (subseq raw-output 0 (- (length raw-output) 1)))
+	 (result (string= expected-output output)))
+    (format t "~:[FAILED~;passed~] case: ~s | expected output: ~a ~:[| actual output: ~a~;~]~%" result input expected-output result output)
+    result))
 
 (defun test-section (string)
   (format t "~a~%" string)
