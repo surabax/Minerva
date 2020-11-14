@@ -1,21 +1,24 @@
 (in-package :minerva)
 
-;; Change this to your project directory before running tests:
-(defparameter *minerva-pathname* "C:/Users/yaros/.quicklisp/local-projects/Minerva/")
+;; Set this variable to your desired intermediates directory before running tests
+(defvar *intermediates-pathname* (assert *intermediates-pathname*))
 
 (defparameter *test-output* *standard-output*)
 
 (defun compile-scheme (input)
-  (with-output-to-file (make-pathname :name "test" :type "s" :defaults *minerva-pathname*) (compile-program input)))
+  (with-output-to-file (make-pathname :name "test" :type "s" :defaults *intermediates-pathname*) (compile-program input)))
 
 (defun clean-test ()
-  (sb-ext:run-program (make-pathname :name "clean" :type "bat" :defaults *minerva-pathname*) nil))
+  (let ((test-s-pathname (make-pathname :name "test" :type "s" :defaults *intermediates-pathname*)))
+    (when (probe-file test-s-pathname) (delete-file test-s-pathname)))
+  (let ((main-exe-pathname (make-pathname :name "main" :type "exe" :defaults *intermediates-pathname*)))
+    (when (probe-file main-exe-pathname) (delete-file main-exe-pathname))))
 
 (defun compile-c ()
-  (sb-ext:run-program (make-pathname :name "compile" :type "bat" :defaults *minerva-pathname*) nil))
+  (uiop:run-program (list "gcc" "test.s" "runtime.c" "-m32" "-o" "main") :directory *intermediates-pathname*))
 
 (defun run-c ()
-  (sb-ext:run-program (make-pathname :name "main" :type "exe" :defaults *minerva-pathname*) nil :output *test-output*))
+  (uiop:run-program (list (make-pathname :name "main" :type "exe" :defaults *intermediates-pathname*)) :output *test-output*))
 
 (defun test-case (input expected-output)
       (let* ((raw-output

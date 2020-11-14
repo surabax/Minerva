@@ -8,6 +8,7 @@
   :version "0.1"
   :author "Yaroslav Khnygin <yaroslav.hnygin@gmail.com>"
   :licence "MIT License"
+  :depends-on ("uiop")
   :components ((:file "emit")
 	       (:file "data")
 	       (:file "scm-bool")
