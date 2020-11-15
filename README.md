@@ -16,7 +16,7 @@ If you are using Quicklisp, clone the repository to your local-projects director
 (asdf:load-system :minerva)
 ```
 
-If you want to use the test suite, set your preferred directory for intermediate files in [tests.lisp](https://github.com/surabax/Minerva/blob/master/tests.lisp) by changing the `*intermediate-directory*` definition.
+If you want to use the test suite, set your preferred directory for intermediate files in [tests.lisp](https://github.com/surabax/Minerva/blob/master/tests.lisp) by changing the `*intermediates-pathname*` definition.
 
 ## Usage
 To run the test suite:
