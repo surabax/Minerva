@@ -43,7 +43,7 @@
 (defun compile-executable (output)
   (uiop:run-program (list "gcc" (file-namestring (make-pathname :type "s" :defaults output)) "runtime.c" "-m32" "-o" (pathname-name output)) :directory (make-pathname :name nil :type nil :defaults output)))
 
-(defun compile-scheme-string (input output)
+(defun compile-scheme-expr (input output)
   (compile-payload input output)
   (compile-executable output))
 

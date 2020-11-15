@@ -1,5 +1,7 @@
 (defpackage :minerva
-  (:use :cl))
+  (:use :cl)
+  (:export :compile-scheme-expr
+	   :run-all-tests))
 
 (in-package :minerva)
 
