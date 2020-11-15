@@ -12,7 +12,7 @@ The runtime is written in C, and the compiler depends on GNU as and ld to produc
 
 If you are using Quicklisp, clone the repository to your local-projects directory. Otherwise you can clone it wherever you want and load the system manually:
 ```
-(asdf:load-asd #p"/path/to/Minerva")
+(asdf:load-asd #p"/path/to/Minerva/minerva.asd")
 (asdf:load-system :minerva)
 ```
 
