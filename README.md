@@ -5,7 +5,7 @@ Minerva compiles Scheme expressions into x86 (32-bit) binaries along with a curr
 
 The implementation is far from being complete right now, you can see the supported subset of the language in [the tests suite](https://github.com/surabax/Minerva/blob/master/tests.lisp).
 
-Minerva wasn't tested on operating systems other than Windows and Linux, and on Common Lisp implementations other than SBCL yet.
+Minerva was tested on SBCL under Windows and Linux, other CL implementations and operating systems may or may not work.
 
 ## Install
 The runtime is written in C, and the compiler depends on GNU as and ld to produce executables from emitted assembly code, so you will need to **install either MinGW on Windows or gcc-multilib on Linux.**
